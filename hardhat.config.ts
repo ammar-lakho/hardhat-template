@@ -2,6 +2,7 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+import {utils} from "ethers"
 
 import "./tasks/accounts";
 import "./tasks/clean";
@@ -31,14 +32,25 @@ const chainIds = {
   ropsten: 3,
   bsctestnet: 97,
   mumbai:80001 ,
+  vil: 81,
+  bitgert: 32520
+
 };
 
 // Ensure that we have all the environment variables we need.
-let privateKey: string;
-if (!process.env.PRIVATE_KEY) {
-  throw new Error("Please set your PRIVATE_KEY in a .env file");
+let privateKeys: string[] = [];
+if (!process.env.PRIVATE_KEY && !process.env.MNEMONIC) {
+  throw new Error("Please set your PRIVATE_KEY or MNEMONIC in a .env file");
 } else {
-  privateKey = process.env.PRIVATE_KEY;
+  if (process.env.MNEMONIC) {
+    const hdNode = utils.HDNode.fromMnemonic(process.env.MNEMONIC);
+    for (let i=0; i<100; i++) {
+        privateKeys.push(hdNode.derivePath(`m/44'/60'/0'/0/${i}`).privateKey)
+    }
+  }
+  else if (process.env.PRIVATE_KEY) {
+    privateKeys.push(process.env.PRIVATE_KEY);
+  }
 }
 
 let infuraApiKey: string;
@@ -53,7 +65,7 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
     const url: string = "https://data-seed-prebsc-1-s1.binance.org:8545/";
     
     return {
-      accounts: [privateKey],
+      accounts: privateKeys,
       chainId: chainIds[network],
       url,
     };
@@ -61,7 +73,7 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
   else if(network == "mumbai"){
     const url: string = "https://rpc-mumbai.maticvigil.com";
     return {
-      accounts: [privateKey],
+      accounts: privateKeys,
       chainId: chainIds[network],
       url,
     };
@@ -70,9 +82,8 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
 
   else if(network == "matic"){
     const url: string = "https://rpc-mainnet.maticvigil.com";
-    const privateKey:any = process.env.PRIVATE_KEY;
     return {
-      accounts: [privateKey],
+      accounts: privateKeys,
       chainId: chainIds[network],
       url,
     };
@@ -81,19 +92,36 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
 
   else if(network == "bscmainnet"){
     const url: string = "https://rpc-mainnet.maticvigil.com";
-    const privateKey:any = process.env.PRIVATE_KEY;
     return {
-      accounts: [privateKey],
+      accounts: privateKeys,
       chainId: chainIds[network],
       url,
     };
     
   }
+  else if (network == "vil"){
+    const url: string = "https://vilinius.zenithchain.co/http";
+    return {
+      accounts: privateKeys,
+      chainId: chainIds[network],
+      url,
+    };
+  }
+
+  else if (network == "bitgert") {
+    const url: string = "https://mainnet-rpc.brisescan.com";
+    return {
+      accounts: privateKeys,
+      chainId: chainIds[network],
+      url,
+    };
+  }
+
   else {
     const url: string = "https://" + network + ".infura.io/v3/" + infuraApiKey;
 
     return {
-      accounts: [privateKey],
+      accounts: privateKeys,
       chainId: chainIds[network],
       url,
     };
@@ -119,6 +147,8 @@ const config: HardhatUserConfig = {
     mumbai: createTestnetConfig("mumbai"),
     bscmainnet: createTestnetConfig("bscmainnet"),
     matic: createTestnetConfig("matic"),
+    vil: createTestnetConfig("vil"),
+    bitgert: createTestnetConfig("bitgert"),
   },
   etherscan: {
     // Your API key for Etherscan
@@ -137,6 +167,16 @@ const config: HardhatUserConfig = {
     compilers: [
       {
         version: "0.8.7",
+        settings: {
+          // https://hardhat.org/hardhat-network/#solidity-optimizer-support
+          optimizer: {
+            enabled: true,
+            runs: 1,
+          },
+        },
+      },
+			{
+        version: "0.5.16",
         settings: {
           // https://hardhat.org/hardhat-network/#solidity-optimizer-support
           optimizer: {
@@ -167,6 +207,13 @@ const config: HardhatUserConfig = {
       },
       {
         version: "0.6.6",
+				settings: {
+          // https://hardhat.org/hardhat-network/#solidity-optimizer-support
+          optimizer: {
+            enabled: true,
+            runs: 999999,
+          },
+        },
       },
       {
         version: "0.4.17",
